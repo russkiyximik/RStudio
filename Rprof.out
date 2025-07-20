@@ -1,0 +1,4 @@
+sample.interval=20000
+"ls" "FUN" "lapply" ".rs.objectsOnSearchPath" ".rs.getCompletionsSearchPath" "Reduce" ".rs.rpc.get_completions" 
+"gsub" ".rs.getSignature" "is.factor" "sub" ".rs.getHelpFromObject" ".rs.getHelpFunction" ".rs.getHelpRpcImpl" ".rs.rpc.get_help" 
+"grep" "isBlankLineRd" "addParaBreaks" "writeLines" "writeLinesUTF8" "of1" "writeBlock" "writeContent" "writeSection" "Rd2HTML" "tools:::httpd" "withCallingHandlers" "suppressWarnings" ".rs.getHelp" ".rs.getHelpFromObject" ".rs.getHelpFunction" ".rs.getHelpRpcImpl" ".rs.rpc.get_help" 
