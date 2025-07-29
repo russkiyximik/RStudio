@@ -33,7 +33,8 @@ mergedtibble <- cbind(subject, x, y)
 extracted <- mergedtibble %>% select(subject, label, contains('mean'), contains('std'))
 
 # Uses descriptive activity names to name the activities in the data set
-extracted$label <- activities[extracted$label, 2]
+extracted <- extracted %>% left_join(activities, by = c("label" = "label")) %>% 
+  select(subject, activity, everything(), -label)
 
 # Appropriately labels the data set with descriptive variable names
 names(extracted)[2] = "activity"
