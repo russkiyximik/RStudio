@@ -1,0 +1,81 @@
+---
+title: "Damage Caused by Severe Weather Events"
+author: "Me"
+date: "2025-08-11"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+The purpose of this analysis was to investigate severe weather events and determine which ones caused the most damage in terms of both human health and finances. First, I imported the raw data from the database website. The events in the database start in the year 1950 and end in November 2011. Then, I sorted the data into groups; first by total fatalities, then by total property damage. Finally, I graphed the two data groups into bar plots.
+
+## Data Processing
+
+First, I imported necessary libraries and downloaded the data. Then, I read in the data using the readr package.
+
+```{r, cache=TRUE}
+library(ggplot2)
+library(tidyverse)
+
+if (!file.exists('StormData.bz2')) {
+	download.file('https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2', 'StormData.bz2')
+}
+
+raw <- read_csv('StormData.bz2')
+```
+
+### Health
+
+First I decided to focus on events that caused the most damage to human health. I filtered the data by event type:
+
+```{r, cache=TRUE}
+fatbyevent <- raw %>% select(FATALITIES, EVTYPE) %>% group_by(EVTYPE) %>% 
+	summarise(FATALITIES=sum(FATALITIES)) %>% arrange(desc(FATALITIES)) %>% 
+	mutate(EVTYPE = ifelse(row_number() > 20, 'Other', EVTYPE)) %>% 
+	group_by(EVTYPE) %>% summarise(FATALITIES=sum(FATALITIES))
+```
+
+Sorry for the enormous pipeline! Step by step, what I did is: selected the relevant data frame columns, grouped by event type, found total fatalities by group, rearranged and filtered to get the top 20 events by name (out of \~970 total events!), and re-summarised to get a nice and concise data frame.
+
+Finally, I graphed the data and found the most harmful event type:
+
+```{r, echo=TRUE, cache=TRUE}
+g1 <- ggplot(fatbyevent, aes(EVTYPE, FATALITIES))
+g1 + geom_col() + theme(axis.text.x = element_blank())
+fatbyevent$EVTYPE[[which.max(fatbyevent$FATALITIES)]]
+# Tornadoes cause the most damage to human health with a total of 
+# 288661 recorded fatalities.
+```
+
+### Property
+
+Now, I wanted to analyse which events caused the most damage to property. Again filtering by data type:
+
+```{r, cache=TRUE}
+dmgbyevent <- raw %>% select(PROPDMG, EVTYPE) %>% group_by(EVTYPE) %>% 
+	summarise(PROPDMG=sum(PROPDMG)) %>% arrange(desc(PROPDMG)) %>% 
+	mutate(EVTYPE = ifelse(row_number() > 20, 'Other', EVTYPE)) %>% 
+	group_by(EVTYPE) %>% summarise(PROPDMG=sum(PROPDMG))
+```
+
+This does essentially the same thing as the previous data filtering (for total fatalities), but for property damage.
+
+Graphing the data:
+
+```{r, echo=TRUE, cache=TRUE}
+g2 <- ggplot(dmgbyevent, aes(EVTYPE, PROPDMG))
+g2 + geom_col() + theme(axis.text.x = element_blank())
+dmgbyevent$EVTYPE[[which.max(dmgbyevent$PROPDMG)]]
+# Again, tornadoes are the most harmful event type, this time by 
+# property damage.
+```
+
+## Results
+
+Tornadoes are terrible! They cause the most amount of fatalities and most amount of property damage out of any event type.
