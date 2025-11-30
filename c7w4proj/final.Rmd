@@ -1,0 +1,168 @@
+---
+title: "regression models final project"
+author: "Me"
+date: "2025-11-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+Our model found that manual transmission cars have ~1.6 mpg more than automatic cars. However, the 95% CI for the effect of transmission type on MPG was approximately (-1.11, 4.30). Further, the p-value for the effect of transmission type was ~0.24. This result is not statistically significant, and we thus cannot infer that transmission type affects miles per gallon.
+
+In practical terms, differences in mpg appear to be driven primarily by vehicle
+weight and engine performance characteristics, not transmission type.
+
+## Project
+
+The objective of this project is to answer the following questions: 1. Whether automatic or manual transmission is better for MPG, and 2. Quantify the MPG difference between automatic and manual.
+
+```{r}
+library(dplyr)
+data(mtcars)
+head(mtcars)
+```
+
+## EDA
+
+So we can see that our columns of interest are "mpg" and "am", which represent MPG and automatic/manual respectively. A 0 in "am" represents automatic transmission, while a 1 represents manual. Let us perform some EDA on the data. 
+
+```{r}
+summary(mtcars)
+table(mtcars$am)
+boxplot(mtcars$mpg, horizontal=TRUE)
+boxplot(data = mtcars, mpg ~ am)
+```
+
+Okay so we can see the distribution of our mpg. We also see that we have 13 observations with manual transmission and 19 with automatic. Note: the sample size is quite small (32) so we should interpret results with caution. We can also see that the distribution of mpg looks smaller in value for automatic than for manual transmission.
+
+## Model Selection
+
+Now let us model a regression to answer our initial questions.
+
+1. Is an automatic or manual transmission better for MPG?
+
+2. Quantify the MPG difference between automatic and manual transmissions.
+
+Since `am` is binary, let's fit a generalized linear model (logistic regression) to it wrt `mpg`.
+
+```{r}
+mod1 <- glm(formula = am ~ mpg, family = binomial, data = mtcars)
+library(ggplot2)
+ggplot(data = mtcars, aes(x = mpg, y = am)) + 
+	geom_point(aes(color = am), 
+		   size = 3, 
+		   position = position_jitter(height = 0.05, width = 0)) + 
+	stat_smooth(method = "glm", 
+		    method.args = list(family = "binomial"), 
+		    se = TRUE, 
+		    color = "blue", linewidth = 1.5)
+summary(mod1)
+```
+
+Conclusions: We can see that the model assigns statistical significance to both our intercept and slope (logistic) coefficients. We don't really care about the intercept, since an mpg of -6.6 is nonsensical in the real world.
+
+```{r}
+confint(mod1)
+```
+
+We can see that the 95% confidence interval for the logistic slope does not contain zero, so we can conclude that raising mpg does raises the chance of the car having manual transmission, to a statistically significant degree. However, this is P(am | mpg), while our questions ask for P(mpg | am). Let's make some more models.
+
+Let's make a linear model, first checking to see which variables to include. We want variables that confound the relationship between `mpg` and `am`; uncorrelated regressors increase coefficient variance and decrease interpretability.
+
+```{r}
+library(MASS)
+mod2 <- lm(formula = mpg ~ ., data = mtcars) %>% step(direction='backward', trace=0)
+summary(mod2)
+```
+
+Okay so we used the Akaike Information Criterion to generate an initial model. AIC is a greedy algorithm, so we need to run some diagnostics on it to check if it is suitable. First, we can see that the model selected weight, 1/4 mile time, and automatic transmission as our regressors. The model explains ~83% of variance in our data and has an extremely low p-value. Let's check for collinearity:
+
+```{r}
+library(car)
+mod2 %>% vif
+mod2 %>% confint
+```
+
+So far, so good. We have low VIFs meaning none of our variables are highly collinear (redundant). Our 95% CI for `am` does not include 0, so we are certain that am has a positive effect on mpg. Now, let's drop `am` to see if that affects our model.
+
+```{r}
+mod3 <- lm(formula = mpg ~ wt + qsec, data=mtcars)
+summary(mod3)
+```
+
+The values for this model are quite similar to the previous one. The p value went even lower for `wt`, increased slightly for `qsec`, and decreased slightly for the model overall. Our adjusted R^2 went down by ~2%.
+
+```{r}
+mod3 %>% vif
+```
+
+Unsurprisingly, our two variables are practically completely uncorrelated.
+
+```{r}
+anova(mod2, mod3)
+AIC(mod2, mod3)
+```
+
+Starting with AIC, we can see that including am slightly decreased the AIC, meaning the model has a marginally better fit. However, from anova we see that we have a statistically significant effect of adding `am` to our model. Therefore, we will proceed with the model which includes `am`, `wt`, and `qsec`.
+
+## Model Analysis
+
+```{r}
+mod2 %>% summary
+```
+
+Accounting for weight and 1/4 mile time, the average MPG difference between manual and automatic cars is ~ 2.9 mpg. However, we should check model diagnostics to ensure that we can infer this result.
+
+```{r}
+par(mfrow=c(2,2))
+plot(mod2)
+```
+
+Our residuals follow a slightly curved path, indicating minor non-linearity, which is probably not worrisome but worth noting. The Q-Q plot shows more-or-less normal data, with the exceptions being the right tail, indicating that the data is mildly right-skewed. The Scale-Location graph looks like it is slightly increasing, suggesting heteroscedasticity.
+
+```{r}
+par(mfrow=c(1,1))
+plot(mod2, which=4)
+```
+
+Our only influential point (large distance, located on the extrema of x-axis) is Merc 230. Let's try one more model.
+
+```{r}
+mod4 <- lm(mpg ~ log(wt) + qsec + am, data=mtcars)
+par(mfrow=c(2,4))
+mod2 %>% plot
+mod4 %>% plot
+```
+
+Let's compare the two models.The residual plot for the newer model (model 4) is more linear than that of the older one (model 2), indicating higher linearity. The Q-Q plot of model 4 is slightly flatter, indicating residuals are closer to normal. The Scale-Location graph is much more even for model 4, suggesting homoscedasticity relative to model 2. Residual vs Leverage is similar for both.
+
+```{r}
+AIC(mod2, mod4)
+mod2 %>% vif
+mod4 %>% vif
+```
+
+Model 4 has an AIC approximately 9 units lower than Model 2, which constitutes strong evidence in favor of model 4. Model 4 has slightly higher regressor variance, which can be explained by the fact that the log transformation "compresses" the spacing for the `mpg` values of high-weight cars, hence making it more linear wrt the other variables. These increases in VIF are far below levels of concern.
+
+```{r}
+mod4 %>% summary
+mod4 %>% confint
+```
+
+Model 4 has a higher Adj-R^2 (it explains more variance). Model 4 beats model 2 on all above-mentioned criteria, so we will use it to test our hypotheses. Model 4 predicts that manual transmission cars have ~1.6 mpg more than automatic cars. However, our model did not find this to be statistically significant. Our 95% CI contains 0, so we cannot scientifically determine if automatic or manual transmission is better for mpg. 
+
+For curiosity's sake, let's remove `am` from our model to see if it even matters for predicting `mpg`.
+
+```{r}
+mod5 <- lm(mpg ~ log(wt) + qsec, mtcars)
+mod5 %>% summary
+par(mfrow=c(2,2))
+mod5 %>% plot
+anova(mod4, mod5)
+```
+
+We can see that in our new model (which has very reasonable diagnostic plots), the variance explained is practically the same, with our predictors being highly statistically significant. Our ANOVA predicts that adding `am` to the model does not increase predictive power to a statistically significant degree. Thus, we can conclude that after adjusting for confounders, `am` does NOT have an independent influence on `mpg`, backing up our model 4 summary.
