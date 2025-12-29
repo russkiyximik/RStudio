@@ -1,0 +1,93 @@
+---
+title: "Course Project"
+author: "Me"
+date: "2025-12-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this project is to predict the manner in which the subjects
+performed the exercise. I will use the tidymodels package to build the model.
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+raw_training <- read_csv('pml-training.csv')
+raw_training %>% glimpse
+```
+
+## EDA
+
+Now we can perform some EDA with this data. Note that the first column is 
+simply the index (can cut it out of regression), last is the outcome.
+
+```{r}
+training <- raw_training %>% mutate(classe=as.factor(classe)) %>% 
+	mutate(user_name=as.factor(user_name))
+training$classe %>% levels
+training %>% map(~ mean(is.na(.))) %>% glimpse
+```
+
+A lot of these variables have a very high NA rate and we can likely
+get rid of them, they seem to be summary statistics. We can also remove
+timestamps and other indexes.
+
+## Building the model
+
+We can move on to actually building the model now. We will make CV folds,
+then make a recipe to normalize columns and remove nzv columns,
+make a random forest model for each fold and finally run and collect the 
+metrics.
+
+```{r}
+set.seed(123)
+
+folds <- vfold_cv(training, v = 5, strata = classe)
+
+rec <- recipe(classe ~ ., data=training) %>% 
+	step_rm(`...1`, raw_timestamp_part_1, raw_timestamp_part_2, 
+		cvtd_timestamp, new_window, num_window) %>% 
+	step_filter_missing(all_predictors(), threshold=.95) %>% 
+	step_impute_median(all_numeric_predictors()) %>% 
+	step_normalize(all_numeric_predictors()) %>% 
+	step_nzv(all_predictors())
+
+mod <- rand_forest(trees = 200, mtry = 10, min_n = 5) %>%
+	set_engine("ranger") %>%
+	set_mode("classification")
+
+wf <- workflow() %>% add_recipe(rec) %>% add_model(mod)
+
+results <- fit_resamples(
+	wf, resamples = folds,
+	metrics = metric_set(accuracy, kap, mn_log_loss),
+	control = control_resamples(save_pred = FALSE)
+)
+
+collect_metrics(results) %>% arrange(desc(mean))
+
+final_fit <- fit(wf, data=training)
+```
+
+We can see that the model gave a high accuracy and good statistics for the 
+kappa and mean log loss. So we will use this model.
+
+```{r}
+raw_testing <- read_csv('pml-testing.csv')
+testing <- raw_testing %>% mutate(user_name=as.factor(user_name))
+pred_class <- predict(final_fit, new_data = testing)
+pred_class
+```
+
+These final predictions are what the project asks for.
+
+Post-project notes: here are some things I think I can improve on. First off,
+RF models don't require normalized columns. I was at first suspicious of the
+high accuracy of the model, but the raw features and basically deterministic of
+the outcome in this dataset (accelerations, velocities, orientations are
+very strong predictors of if an exercise was done "correctly"). 
