@@ -1,0 +1,12 @@
+name: Simulation
+title: Simulation
+username: russkiyximik
+account: russkiyximik
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16371548
+bundleId: 11399313
+url: https://russkiyximik.shinyapps.io/Simulation/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

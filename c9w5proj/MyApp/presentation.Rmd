@@ -1,0 +1,101 @@
+---
+title: "Monte Carlo Presentation"
+author: "Alexander Ponomarev"
+date: "2026-01-04"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction & Motivation
+
+My name is Alexander Ponomarev, and I am an undergraduate student at the
+University of Michigan - Ann Arbor. I am pursuing a double major in chemical
+engineering and mathematics. I am currently taking the online course "Developing
+Data Products" on Coursera, and this project is the final assignment.
+
+Allow me to briefly motivate this project. The project specs state that I must
+create an R Shiny app with user input and interactivity. I chose to make a
+simple Monte Carlo simulation due to its popularity as a beginner-friendly,
+interpretable project for those interested in finance and math.
+
+I hope this Shiny app will inspire even a little bit of interest in the subject
+of quantitative finance for the user.
+
+## Monte Carlo Explanation
+
+What is a Monte Carlo simulation? A Monte Carlo simulation is a computational method for understanding uncertainty by repeatedly simulating random outcomes according to a specified probabilistic model. Each run of the simulation produces one possible trajectory, and running it thousands of times generates a distribution of outcomes rather than a single prediction.
+
+In finance, Monte Carlo simulations are often built on stochastic processes such as geometric Brownian motion, where returns are modeled as a deterministic trend plus random shocks. By aggregating many simulated price paths, you can estimate important quantities like expected returns, volatility over time, probabilities of losses, and risk measures like quantiles or Value at Risk. 
+
+## Example Simulation
+
+```{r}
+library(ggplot2)
+simulate_gbm <- function() {
+	set.seed(12345)
+	dt <- 5 / 1000
+	t <- seq(0, 5, length.out=1000+1)
+	
+	Z <- matrix(rnorm(1000 * 50), nrow = 1000, ncol = 50)
+	increments <- (0.1 - 0.5 * 0.2^2) * dt + 0.2 * sqrt(dt) * Z
+	
+	log_paths <- apply(increments, 2, cumsum)   
+	log_paths <- rbind(rep(0, 50), log_paths)    
+	paths <- 100 * exp(log_paths)             
+	
+	list(t = t, paths = paths)
+}
+
+s <- simulate_gbm()
+t <- s$t
+paths <- s$paths
+k <- ncol(paths)
+idx <- seq_len(k)
+
+q <- apply(paths, 1, quantile, probs = c(0.05, 0.5, 0.95))
+df_band <- data.frame(
+	t = t,
+	q05 = q[1,],
+	q50 = q[2,],
+	q95 = q[3,]
+)
+
+df_paths <- data.frame(
+	t = rep(t, times = k),
+	sim = rep(paste0("sim_", idx), each = length(t)),
+	price = as.vector(paths[, idx])
+)
+
+ggplot() +
+	geom_line(data = df_paths, aes(t, price, group = sim), alpha = 0.25) +
+	geom_ribbon(data = df_band, aes(t, ymin = q05, ymax = q95), alpha = 0.25) +
+	geom_line(data = df_band, aes(t, q50), linewidth = 1) +
+	labs(x = "Time (years)", y = "Price", title = "Sample paths + 5/50/95% bands") +
+	theme_minimal()
+```
+
+## Conclusion
+
+The previous slide demonstrated a simple Monte Carlo simulation where the stock 
+had a general upward drift, so most paths generated positive return. Here is
+the code that generated the paths:
+
+```
+simulate_gbm <- function() {
+	set.seed(12345)
+	dt <- 5 / 1000
+	t <- seq(0, 5, length.out=1000+1)
+	
+	Z <- matrix(rnorm(1000 * 50), nrow = 1000, ncol = 50)
+	increments <- (0.1 - 0.5 * 0.2^2) * dt + 0.2 * sqrt(dt) * Z
+	
+	log_paths <- apply(increments, 2, cumsum)   
+	log_paths <- rbind(rep(0, 50), log_paths)    
+	paths <- 100 * exp(log_paths)             
+	
+	list(t = t, paths = paths)
+}
+```

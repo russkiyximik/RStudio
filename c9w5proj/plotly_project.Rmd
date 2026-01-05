@@ -1,0 +1,23 @@
+---
+title: "plotly_project"
+author: "Alexander Ponomarev"
+date: "2026-01-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## My R plot in plotly
+
+This is a simple plotly plot for the Data Science in R specialization on 
+Coursera.
+
+```{r, message=FALSE, warning=FALSE}
+library(plotly)
+library(tidyverse)
+raw <- read_csv("ann_arbor_air_quality_hourly.csv")
+filtered <- raw %>% filter(year(timestamp_hour_start)>2025)
+plot_ly(filtered, x=filtered$pm1_raw, y=filtered$pm10_raw, mode='markers')
+```

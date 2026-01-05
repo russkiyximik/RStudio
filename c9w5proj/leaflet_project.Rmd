@@ -1,0 +1,45 @@
+---
+title: "Leaflet Assignment"
+author: "Alexander Ponomarev"
+date: "2026-01-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## My R map in Leaflet
+
+This assignment requires me to create a web page using R Markdown that features 
+a map created with Leaflet. I must host this web page on RPubs. 
+
+The point of this exercise is to briefly introduce myself to the Leaflet R
+package.
+
+First, let's load the data (available at https://data.a2gov.org/city-of-ann-arbor/air-quality-sensor-data):
+
+```{r, message=FALSE}
+library(tidyverse)
+raw <- read_csv("ann_arbor_air_quality_hourly.csv")
+```
+
+## Making the plot
+
+Now let's make a simple map for the data, I will only use entries from 2026
+to keep the map small:
+
+```{r, message=FALSE, warning=FALSE}
+library(leaflet)
+set.seed(2026-01-02)
+filtered <- raw %>% filter(year(timestamp_hour_start)>2025)
+
+df <- data.frame(lat=filtered$lat, lng=filtered$lon,
+		 label=filtered$location_name, 
+		 value=filtered$largest_pollutant_value)
+		 
+df %>% leaflet() %>% addTiles() %>% 
+	addMarkers(label=~label,
+		   popup=~value,
+		   clusterOptions = markerClusterOptions())
+```
